@@ -189,18 +189,27 @@ namespace FufuLauncher.Services
                     logBuilder.AppendLine($"[启动流程] 树脂107012: {resin107012}");
                     logBuilder.AppendLine($"[启动流程] 树脂220007: {resin220007}");
 
-                    _launcherService.UpdateConfig(gameExePath, removeQuestBanner, removeDamageText, useTouchScreen,
-                        disableEventCameraMove, removeTeamProgress, redirectCombineEntry,
-                        resin106, resin201, resin107009, resin107012, resin220007);
+                    int configMask = 0;
+                    if (removeQuestBanner) configMask |= 1 << 0;
+                    if (removeDamageText) configMask |= 1 << 1;
+                    if (useTouchScreen) configMask |= 1 << 2;
+                    if (disableEventCameraMove) configMask |= 1 << 3;
+                    if (removeTeamProgress) configMask |= 1 << 4;
+                    if (redirectCombineEntry) configMask |= 1 << 5;
+                    if (resin106) configMask |= 1 << 6;
+                    if (resin201) configMask |= 1 << 7;
+                    if (resin107009) configMask |= 1 << 8;
+                    if (resin107012) configMask |= 1 << 9;
+                    if (resin220007) configMask |= 1 << 10;
 
-                    logBuilder.AppendLine("[启动流程] 配置已同步到共享内存");
+                    logBuilder.AppendLine($"[启动流程] 配置掩码: {configMask}");
 
                     var dllPath = _launcherService.GetDefaultDllPath();
                     logBuilder.AppendLine($"[启动流程] 注入DLL路径: {dllPath}");
 
                     if (File.Exists(dllPath))
                     {
-                        gameStarted = await LaunchViaElevatedProcessAsync(gameExePath, dllPath, arguments, logBuilder);
+                        gameStarted = await LaunchViaElevatedProcessAsync(gameExePath, dllPath, configMask, arguments, logBuilder);
                     }
                     else
                     {
@@ -298,7 +307,7 @@ namespace FufuLauncher.Services
             }
         }
 
-        private async Task<bool> LaunchViaElevatedProcessAsync(string gameExePath, string dllPath, string arguments, StringBuilder log)
+        private async Task<bool> LaunchViaElevatedProcessAsync(string gameExePath, string dllPath, int configMask, string arguments, StringBuilder log)
         {
             try
             {
@@ -312,7 +321,7 @@ namespace FufuLauncher.Services
                 var psi = new ProcessStartInfo
                 {
                     FileName = currentExe,
-                    Arguments = BuildElevatedArgumentString(gameExePath, dllPath, arguments),
+                    Arguments = BuildElevatedArgumentString(gameExePath, dllPath, configMask, arguments),
                     UseShellExecute = true,
                     Verb = "runas",
                     WorkingDirectory = Path.GetDirectoryName(currentExe)
@@ -344,15 +353,50 @@ namespace FufuLauncher.Services
             }
         }
 
-        private static string BuildElevatedArgumentString(string gameExePath, string dllPath, string commandLineArgs)
+        private static string BuildElevatedArgumentString(string gameExePath, string dllPath, int configMask, string commandLineArgs)
         {
-            static string Quote(string value)
+            return $"--elevated-inject {QuoteArgument(gameExePath)} {QuoteArgument(dllPath)} {configMask} {QuoteArgument(commandLineArgs ?? string.Empty)}";
+        }
+
+        private static string QuoteArgument(string argument)
+        {
+            if (string.IsNullOrEmpty(argument)) return "\"\"";
+            if (!argument.Contains(' ') && !argument.Contains('\t') && !argument.Contains('\n') && !argument.Contains('\v') && !argument.Contains('\"'))
             {
-                if (string.IsNullOrEmpty(value)) return "\"\"";
-                return $"\"{value.Replace("\"", "\"\"")}\"";
+                return argument;
             }
 
-            return $"--elevated-inject {Quote(gameExePath)} {Quote(dllPath)} {Quote(commandLineArgs ?? string.Empty)}";
+            var sb = new StringBuilder();
+            sb.Append('"');
+
+            for (int i = 0; i < argument.Length; i++)
+            {
+                int backslashes = 0;
+                while (i < argument.Length && argument[i] == '\\')
+                {
+                    backslashes++;
+                    i++;
+                }
+
+                if (i == argument.Length)
+                {
+                    sb.Append('\\', backslashes * 2);
+                    break;
+                }
+                else if (argument[i] == '"')
+                {
+                    sb.Append('\\', backslashes * 2 + 1);
+                    sb.Append('"');
+                }
+                else
+                {
+                    sb.Append('\\', backslashes);
+                    sb.Append(argument[i]);
+                }
+            }
+
+            sb.Append('"');
+            return sb.ToString();
         }
 
         private async Task LaunchAdditionalProgramAsync()
