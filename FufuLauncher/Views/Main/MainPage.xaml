@@ -211,7 +211,7 @@
                 
                 <Grid Padding="16" CornerRadius="8" BorderThickness="1" 
                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                      Background="{ThemeResource CustomPanelBackgroundBrush}">
+                      Background="Transparent">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
