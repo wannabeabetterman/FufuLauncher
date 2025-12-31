@@ -238,6 +238,7 @@
                 <Button VerticalAlignment="Top" HorizontalAlignment="Right" 
                         Margin="0,0,0,12"
                         Command="{x:Bind ViewModel.ToggleBackgroundTypeCommand}"
+                        IsEnabled="{x:Bind ViewModel.IsBackgroundToggleEnabled, Mode=OneWay}" 
                         Content="{x:Bind ViewModel.BackgroundTypeToggleText, Mode=OneWay}"
                         CornerRadius="6" Padding="12,6"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
